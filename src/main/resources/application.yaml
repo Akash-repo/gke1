@@ -1,0 +1,9 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: gke1
+
+gke2:
+  base-url: ${GKE2_URL:http://localhost:8083}
