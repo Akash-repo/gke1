@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: gke1
+  namespace: apps
+  annotations:
+    cloud.google.com/neg: '{"ingress": true}'
+spec:
+  selector:
+    app: gke1
+  ports:
+    - port: 80
+      targetPort: 8082
+  type: ClusterIP

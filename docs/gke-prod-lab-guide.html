@@ -1,0 +1,897 @@
+<title>gke1 ⇄ gke2 on GKE — Production Deployment Lab</title>
+
+<style>
+  :root {
+    --bg: #f5f7f9;
+    --surface: #ffffff;
+    --surface-alt: #eceff3;
+    --ink: #121a24;
+    --ink-muted: #55606e;
+    --line: #d7dee6;
+    --accent: #0e7c86;
+    --accent-ink: #075761;
+    --accent-bg: #e2f2f2;
+    --warn: #b4650a;
+    --warn-bg: #fbeedd;
+    --good: #1f7a4d;
+    --good-bg: #e6f3ec;
+    --code-bg: #0b1220;
+    --code-ink: #d7e1ec;
+    --code-accent: #6ee7b7;
+    --code-muted: #7c8aa0;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d1218;
+      --surface: #141b23;
+      --surface-alt: #1b2430;
+      --ink: #e7ecf2;
+      --ink-muted: #9aa7b6;
+      --line: #2a3542;
+      --accent: #4fd1db;
+      --accent-ink: #7be0e8;
+      --accent-bg: #16292b;
+      --warn: #e3a24b;
+      --warn-bg: #2a2114;
+      --good: #57c285;
+      --good-bg: #16261d;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1218;
+    --surface: #141b23;
+    --surface-alt: #1b2430;
+    --ink: #e7ecf2;
+    --ink-muted: #9aa7b6;
+    --line: #2a3542;
+    --accent: #4fd1db;
+    --accent-ink: #7be0e8;
+    --accent-bg: #16292b;
+    --warn: #e3a24b;
+    --warn-bg: #2a2114;
+    --good: #57c285;
+    --good-bg: #16261d;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    line-height: 1.6;
+    font-size: 16px;
+    margin: 0;
+    padding: 0 1.25rem 6rem;
+  }
+  a { color: var(--accent-ink); }
+  a:focus-visible, button:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .wrap {
+    max-width: 1120px;
+    margin: 0 auto;
+  }
+
+  header.hero {
+    padding: 3rem 0 2rem;
+    border-bottom: 1px solid var(--line);
+  }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    font-weight: 600;
+  }
+  h1 {
+    font-size: clamp(1.9rem, 3.4vw, 2.6rem);
+    line-height: 1.15;
+    margin: 0.5rem 0 0.6rem;
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+  .lede {
+    color: var(--ink-muted);
+    font-size: 1.05rem;
+    max-width: 62ch;
+    margin: 0;
+  }
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.5rem;
+    margin-top: 1.5rem;
+    font-size: 0.85rem;
+    color: var(--ink-muted);
+    font-family: var(--font-mono);
+  }
+  .meta-row strong { color: var(--ink); font-weight: 600; }
+
+  figure.diagram {
+    margin: 2rem 0 0;
+    padding: 1.25rem 1.25rem 1rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+  }
+  figure.diagram svg { width: 100%; height: auto; display: block; color: var(--ink-muted); }
+  figure.diagram figcaption {
+    margin-top: 0.75rem;
+    font-size: 0.85rem;
+    color: var(--ink-muted);
+    border-top: 1px solid var(--line);
+    padding-top: 0.75rem;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 230px 1fr;
+    gap: 2.5rem;
+    margin-top: 2.5rem;
+    align-items: start;
+  }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    nav.toc { position: static !important; }
+  }
+
+  nav.toc {
+    position: sticky;
+    top: 1.5rem;
+    font-size: 0.88rem;
+  }
+  nav.toc .toc-label {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    margin-bottom: 0.75rem;
+    display: block;
+  }
+  nav.toc ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-left: 2px solid var(--line);
+  }
+  nav.toc li { margin: 0; }
+  nav.toc a {
+    display: block;
+    padding: 0.4rem 0 0.4rem 0.9rem;
+    margin-left: -2px;
+    border-left: 2px solid transparent;
+    color: var(--ink-muted);
+    text-decoration: none;
+  }
+  nav.toc a:hover { color: var(--ink); border-left-color: var(--line); }
+  nav.toc .num { font-family: var(--font-mono); color: var(--accent-ink); margin-right: 0.4rem; }
+
+  main { min-width: 0; }
+
+  section.phase {
+    padding: 2.25rem 0;
+    border-bottom: 1px solid var(--line);
+    scroll-margin-top: 1.5rem;
+  }
+  section.phase:last-of-type { border-bottom: none; }
+  .phase-head { display: flex; align-items: baseline; gap: 0.85rem; margin-bottom: 0.4rem; }
+  .phase-num {
+    font-family: var(--font-mono);
+    color: var(--accent);
+    font-size: 1rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  h2 { font-size: 1.4rem; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+  .why { color: var(--ink-muted); margin: 0.35rem 0 1.25rem; max-width: 68ch; }
+
+  h3 { font-size: 1rem; margin: 1.5rem 0 0.6rem; color: var(--ink); }
+  h3:first-of-type { margin-top: 0; }
+
+  ol.steps, ul.steps {
+    margin: 0 0 1rem;
+    padding-left: 1.3rem;
+  }
+  ol.steps li, ul.steps li { margin-bottom: 0.55rem; max-width: 68ch; }
+  ol.steps li::marker { color: var(--accent-ink); font-family: var(--font-mono); font-size: 0.85em; }
+
+  code {
+    font-family: var(--font-mono);
+    font-size: 0.87em;
+    background: var(--surface-alt);
+    padding: 0.12em 0.4em;
+    border-radius: 4px;
+  }
+
+  .field-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.75rem 0 1.25rem;
+    font-size: 0.9rem;
+  }
+  .field-table-wrap { overflow-x: auto; }
+  .field-table th, .field-table td {
+    text-align: left;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  .field-table th {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    font-weight: 600;
+  }
+  .field-table td.value { font-family: var(--font-mono); font-size: 0.85rem; }
+  .field-table tr:last-child td { border-bottom: none; }
+
+  pre.code-block {
+    background: var(--code-bg);
+    color: var(--code-ink);
+    border-radius: 8px;
+    padding: 1rem 1.1rem;
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    font-size: 0.84rem;
+    line-height: 1.55;
+    margin: 0.75rem 0 1.25rem;
+  }
+  pre.code-block .prompt { color: var(--code-accent); }
+  pre.code-block .comment { color: var(--code-muted); }
+  .code-label {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    margin: 1.1rem 0 -0.4rem;
+  }
+
+  .callout {
+    border-left: 3px solid var(--accent);
+    background: var(--accent-bg);
+    border-radius: 0 8px 8px 0;
+    padding: 0.9rem 1.1rem;
+    margin: 1rem 0;
+    font-size: 0.92rem;
+  }
+  .callout p { margin: 0.3rem 0; }
+  .callout p:first-child { margin-top: 0; }
+  .callout p:last-child { margin-bottom: 0; }
+  .callout .tag {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent-ink);
+    font-weight: 700;
+    display: block;
+    margin-bottom: 0.35rem;
+  }
+  .callout.exam { border-left-color: var(--warn); background: var(--warn-bg); }
+  .callout.exam .tag { color: var(--warn); }
+  .callout.good { border-left-color: var(--good); background: var(--good-bg); }
+  .callout.good .tag { color: var(--good); }
+
+  .badge-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0.5rem 0 1rem; }
+  .badge {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    padding: 0.22rem 0.55rem;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    color: var(--ink-muted);
+  }
+  .badge.console { border-color: var(--accent); color: var(--accent-ink); }
+  .badge.shell { border-color: var(--ink-muted); color: var(--ink); background: var(--surface-alt); }
+
+  table.cheat {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+  }
+  table.cheat th, table.cheat td {
+    text-align: left;
+    padding: 0.65rem 0.85rem;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  table.cheat th {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+  }
+  table.cheat td:first-child { font-weight: 600; white-space: nowrap; }
+
+  ul.teardown { list-style: none; margin: 0; padding: 0; }
+  ul.teardown li {
+    display: flex;
+    gap: 0.65rem;
+    align-items: baseline;
+    padding: 0.55rem 0;
+    border-bottom: 1px solid var(--line);
+  }
+  ul.teardown li:last-child { border-bottom: none; }
+  ul.teardown .step-n {
+    font-family: var(--font-mono);
+    color: var(--ink-muted);
+    font-size: 0.8rem;
+    flex-shrink: 0;
+    width: 1.4rem;
+  }
+
+  footer {
+    max-width: 1120px;
+    margin: 3rem auto 0;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--line);
+    color: var(--ink-muted);
+    font-size: 0.85rem;
+  }
+</style>
+
+<div class="wrap">
+  <header class="hero">
+    <span class="eyebrow">Hands-on lab · GKE Standard · Console-first</span>
+    <h1>Deploying gke1 ⇄ gke2 to GKE, the way a production SRE would</h1>
+    <p class="lede">
+      A custom VPC, private nodes, Cloud NAT, Workload Identity, container-native load balancing,
+      and a teardown checklist — built through the GCP Console, with every decision explained for
+      the certification exam and the interview room.
+    </p>
+    <div class="meta-row">
+      <span><strong>Services:</strong> gke1 (public, calls gke2) · gke2 (internal only)</span>
+      <span><strong>Cluster:</strong> GKE Standard, regional, private nodes</span>
+      <span><strong>Region:</strong> us-central1</span>
+    </div>
+  </header>
+
+  <figure class="diagram">
+    <svg viewBox="0 0 920 560" role="img" aria-label="Traffic from the internet reaches gke1 through an external load balancer that connects directly to pod IPs via a container-native NEG, skipping the nodes entirely. gke1 calls gke2 internally over a ClusterIP service. The private nodes have no external IP; their only path out — for pulling images from Artifact Registry — is through Cloud NAT.">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="currentColor" />
+        </marker>
+        <marker id="arrowAccent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="var(--accent)" />
+        </marker>
+      </defs>
+
+      <!-- Internet -->
+      <rect x="20" y="30" width="150" height="50" rx="6" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="95" y="60" text-anchor="middle" font-size="13" fill="currentColor">Internet</text>
+
+      <!-- Artifact Registry -->
+      <rect x="730" y="30" width="170" height="50" rx="6" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="815" y="55" text-anchor="middle" font-size="12" fill="currentColor">Artifact Registry</text>
+      <text x="815" y="70" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.7">Google-managed</text>
+
+      <!-- LB -->
+      <rect x="20" y="150" width="180" height="60" rx="6" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="110" y="175" text-anchor="middle" font-size="12" fill="currentColor">External HTTPS LB</text>
+      <text x="110" y="192" text-anchor="middle" font-size="10" fill="currentColor" opacity="0.7">(managed by Ingress)</text>
+
+      <!-- VPC boundary -->
+      <rect x="20" y="240" width="880" height="300" rx="10" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="5 4" opacity="0.8"/>
+      <text x="40" y="266" font-size="12.5" font-weight="600" fill="currentColor">VPC · gke-vpc · us-central1 (custom-mode, VPC-native)</text>
+      <text x="40" y="284" font-size="10.5" fill="currentColor" opacity="0.65" font-family="ui-monospace, monospace">10.10.0.0/20 nodes · 10.20.0.0/14 pods · 10.30.0.0/20 services</text>
+
+      <!-- Control plane -->
+      <rect x="690" y="255" width="190" height="55" rx="6" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.75"/>
+      <text x="785" y="277" text-anchor="middle" font-size="11" fill="currentColor" opacity="0.85">GKE Control Plane</text>
+      <text x="785" y="292" text-anchor="middle" font-size="9.5" fill="currentColor" opacity="0.65">Google-managed, private endpoint</text>
+
+      <!-- Subnet -->
+      <rect x="50" y="330" width="570" height="170" rx="8" fill="none" stroke="currentColor" stroke-width="1" opacity="0.6"/>
+      <text x="65" y="350" font-size="11" fill="currentColor" opacity="0.6">subnet: gke-subnet</text>
+
+      <!-- Node A / gke1 pod -->
+      <rect x="80" y="365" width="230" height="115" rx="6" fill="none" stroke="currentColor" stroke-width="1"/>
+      <text x="195" y="470" text-anchor="middle" font-size="9.5" fill="currentColor" opacity="0.65">node · private, no external IP</text>
+      <rect x="100" y="385" width="190" height="55" rx="5" fill="var(--surface-alt)" stroke="currentColor" stroke-width="1"/>
+      <text x="195" y="408" text-anchor="middle" font-size="12" fill="currentColor" font-weight="600">pod: gke1 :8082</text>
+      <text x="195" y="424" text-anchor="middle" font-size="9.5" fill="currentColor" opacity="0.65">2 replicas</text>
+
+      <!-- Node B / gke2 pod -->
+      <rect x="350" y="365" width="230" height="115" rx="6" fill="none" stroke="currentColor" stroke-width="1"/>
+      <text x="465" y="470" text-anchor="middle" font-size="9.5" fill="currentColor" opacity="0.65">node · private, no external IP</text>
+      <rect x="370" y="385" width="190" height="55" rx="5" fill="var(--surface-alt)" stroke="currentColor" stroke-width="1"/>
+      <text x="465" y="405" text-anchor="middle" font-size="12" fill="currentColor" font-weight="600">pod: gke2 :8083</text>
+      <text x="465" y="421" text-anchor="middle" font-size="9.5" fill="currentColor" opacity="0.65">2 replicas · ClusterIP</text>
+
+      <!-- Cloud NAT -->
+      <rect x="660" y="440" width="220" height="70" rx="6" fill="none" stroke="var(--accent)" stroke-width="1.6"/>
+      <text x="770" y="468" text-anchor="middle" font-size="12" fill="var(--accent)" font-weight="600">Cloud Router + Cloud NAT</text>
+      <text x="770" y="484" text-anchor="middle" font-size="9.5" fill="var(--accent)" opacity="0.85">egress-only, regional</text>
+
+      <!-- Arrows -->
+      <line x1="95" y1="80" x2="103" y2="148" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow)"/>
+      <text x="112" y="118" font-size="10.5" fill="currentColor">HTTPS :443</text>
+
+      <line x1="200" y1="195" x2="180" y2="383" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow)"/>
+      <text x="212" y="290" font-size="10" fill="currentColor">NEG → pod IP :8082</text>
+      <text x="212" y="304" font-size="9" fill="currentColor" opacity="0.65">(skips the node, skips kube-proxy)</text>
+
+      <line x1="291" y1="412" x2="368" y2="412" stroke="currentColor" stroke-width="1.4" marker-end="url(#arrow)"/>
+      <text x="330" y="402" text-anchor="middle" font-size="9.5" fill="currentColor">ClusterIP</text>
+      <text x="330" y="430" text-anchor="middle" font-size="9.5" fill="currentColor" font-family="ui-monospace, monospace">http://gke2:8083</text>
+
+      <line x1="581" y1="450" x2="658" y2="465" stroke="var(--accent)" stroke-width="1.6" stroke-dasharray="4 3" marker-end="url(#arrowAccent)"/>
+      <text x="615" y="440" text-anchor="middle" font-size="9.5" fill="var(--accent)">egress only</text>
+
+      <line x1="785" y1="438" x2="810" y2="82" stroke="var(--accent)" stroke-width="1.6" stroke-dasharray="4 3" marker-end="url(#arrowAccent)"/>
+      <text x="880" y="260" font-size="9.5" fill="var(--accent)" text-anchor="end">docker pull</text>
+      <text x="880" y="274" font-size="9.5" fill="var(--accent)" text-anchor="end">via NAT egress</text>
+
+      <line x1="785" y1="310" x2="500" y2="363" stroke="currentColor" stroke-width="1" stroke-dasharray="2 3" opacity="0.5"/>
+      <text x="620" y="345" font-size="9" fill="currentColor" opacity="0.6">private control-plane channel</text>
+    </svg>
+    <figcaption>
+      The load balancer never touches a node's IP — it targets pod IPs directly through a
+      container-native NEG, which is why private nodes can serve internet traffic despite having
+      no external IP of their own. Their <em>only</em> path outward — for pulling images from
+      Artifact Registry, or any other internet call — runs through Cloud NAT. Miss that NAT
+      configuration and pods stay <code>Pending</code> on <code>ImagePullBackOff</code> forever.
+    </figcaption>
+  </figure>
+
+  <div class="layout">
+    <nav class="toc" aria-label="Table of contents">
+      <span class="toc-label">Phases</span>
+      <ol>
+        <li><a href="#phase-0"><span class="num">00</span>How to use this lab</a></li>
+        <li><a href="#phase-1"><span class="num">01</span>Project &amp; APIs</a></li>
+        <li><a href="#phase-2"><span class="num">02</span>VPC &amp; subnet</a></li>
+        <li><a href="#phase-3"><span class="num">03</span>Router &amp; Cloud NAT</a></li>
+        <li><a href="#phase-4"><span class="num">04</span>Firewall rules</a></li>
+        <li><a href="#phase-5"><span class="num">05</span>Artifact Registry</a></li>
+        <li><a href="#phase-6"><span class="num">06</span>Node service account</a></li>
+        <li><a href="#phase-7"><span class="num">07</span>The GKE cluster</a></li>
+        <li><a href="#phase-8"><span class="num">08</span>Connect &amp; deploy</a></li>
+        <li><a href="#phase-9"><span class="num">09</span>Expose &amp; test</a></li>
+        <li><a href="#phase-10"><span class="num">10</span>Autoscaling</a></li>
+        <li><a href="#phase-11"><span class="num">11</span>Observability</a></li>
+        <li><a href="#phase-12"><span class="num">12</span>Exam &amp; interview map</a></li>
+        <li><a href="#phase-13"><span class="num">13</span>Teardown</a></li>
+      </ol>
+    </nav>
+
+    <main>
+      <section class="phase" id="phase-0">
+        <div class="phase-head"><span class="phase-num">00</span><h2>How to use this lab</h2></div>
+        <p class="why">
+          Two kinds of steps appear below. <span class="badge console" style="display:inline;padding:0.1rem 0.4rem;">console</span>
+          steps are clicked through in the GCP Console, as you asked — that's where the
+          architecture decisions live and where exam questions are usually framed. <span class="badge shell" style="display:inline;padding:0.1rem 0.4rem;">cloud shell</span>
+          steps are commands — pushing images and applying Kubernetes YAML has no console
+          equivalent, so those run in Cloud Shell (the terminal built into the console itself,
+          top-right icon — no local setup, already authenticated as you).
+        </p>
+        <div class="callout good">
+          <span class="tag">Already true</span>
+          <p><code>gke1</code> and <code>gke2</code> are already committed to GitHub, and both already
+          build into working local Docker images (<code>gke1:local</code>, <code>gke2:local</code>) that
+          call each other correctly. This lab wires the <em>same two containers</em> into GKE — nothing
+          about the app code changes.</p>
+        </div>
+        <div class="callout exam">
+          <span class="tag">Cost &amp; teardown</span>
+          <p>Every resource here bills hourly the moment it exists — the cluster's control plane,
+          the nodes, the NAT gateway, and above all the load balancer's forwarding rule. Phase 13
+          is a full teardown checklist; run it the same day once you've validated the deployment.</p>
+        </div>
+      </section>
+
+      <section class="phase" id="phase-1">
+        <div class="phase-head"><span class="phase-num">01</span><h2>New project, billing, APIs</h2></div>
+        <p class="why">A dedicated project is a hard billing and IAM boundary — the cheapest possible
+          teardown is <code>gcloud projects delete</code>, which nukes everything inside it in one shot,
+          no matter what you forgot to clean up manually.</p>
+        <div class="badge-row"><span class="badge console">console</span></div>
+        <ol class="steps">
+          <li>Console → project picker (top bar) → <strong>New Project</strong>. Name it something
+            you'll recognize as disposable, e.g. <code>gke-lab-2026</code>.</li>
+          <li>Billing account → link the project to your billing account (required before any
+            compute resource can be created).</li>
+          <li>APIs &amp; Services → <strong>Enable APIs and Services</strong>, enable each of:
+            <code>compute.googleapis.com</code>, <code>container.googleapis.com</code>,
+            <code>artifactregistry.googleapis.com</code>.</li>
+        </ol>
+        <div class="callout exam">
+          <span class="tag">Exam angle</span>
+          <p>The Associate Cloud Engineer exam tests project/folder/org IAM boundaries directly.
+          Know that IAM roles granted at the project level inherit down to every resource inside
+          it, and that deleting a project is the only GCP action that's both total and irreversible
+          after a 30-day grace window.</p>
+        </div>
+      </section>
+
+      <section class="phase" id="phase-2">
+        <div class="phase-head"><span class="phase-num">02</span><h2>Custom VPC &amp; VPC-native subnet</h2></div>
+        <p class="why">Auto-mode VPCs hand you one subnet per region with ranges you don't control —
+          fine for a demo, disqualifying for production, since a VPC-native GKE cluster needs you to
+          reserve <em>two extra IP ranges</em> per subnet before the cluster exists: one for pods,
+          one for Services.</p>
+        <div class="badge-row"><span class="badge console">console</span></div>
+        <ol class="steps">
+          <li>VPC network → <strong>Create VPC network</strong>. Subnet creation mode: <strong>Custom</strong>
+            — never Auto for anything you'd call production.</li>
+          <li>Add a subnet with these exact values:</li>
+        </ol>
+        <div class="field-table-wrap">
+          <table class="field-table">
+            <thead><tr><th>Field</th><th>Value</th></tr></thead>
+            <tbody>
+              <tr><td>Name</td><td class="value">gke-subnet</td></tr>
+              <tr><td>Region</td><td class="value">us-central1</td></tr>
+              <tr><td>Primary IP range (nodes)</td><td class="value">10.10.0.0/20</td></tr>
+              <tr><td>Secondary range — pods</td><td class="value">gke-pods · 10.20.0.0/14</td></tr>
+              <tr><td>Secondary range — services</td><td class="value">gke-services · 10.30.0.0/20</td></tr>
+              <tr><td>Private Google Access</td><td class="value">On</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="callout exam">
+          <span class="tag">Exam angle</span>
+          <p><strong>Private Google Access</strong> and <strong>Private nodes</strong> are different
+          knobs that get conflated constantly. Private Google Access lets resources <em>without</em>
+          an external IP reach Google APIs (Artifact Registry, Logging, Storage) directly, without
+          NAT. It does nothing for reaching the general internet — that's Cloud NAT's job, next phase.
+          A private GKE cluster needs both.</p>
+        </div>
+      </section>
+
+      <section class="phase" id="phase-3">
+        <div class="phase-head"><span class="phase-num">03</span><h2>Cloud Router + Cloud NAT</h2></div>
+        <p class="why">Private nodes have no external IP by design — that's the whole point of "private."
+          But <code>docker pull</code> from Artifact Registry, OS package updates, and any outbound
+          call your app makes to the public internet still need <em>some</em> way out. Cloud NAT is
+          that way out, and it's the single most common thing people forget when standing up a
+          private cluster — the symptom is pods stuck on <code>ImagePullBackOff</code> with no
+          obvious cause.</p>
+        <div class="badge-row"><span class="badge console">console</span></div>
+        <ol class="steps">
+          <li>VPC network → <strong>Cloud Routers</strong> → Create router. Name <code>gke-router</code>,
+            network <code>gke-vpc</code>, region <code>us-central1</code>.</li>
+          <li>Network Services → <strong>Cloud NAT</strong> → Create NAT gateway. Attach it to
+            <code>gke-router</code>. Under NAT mapping, choose <strong>Custom subnet IP ranges</strong>
+            and explicitly select <code>gke-subnet</code> — <strong>including its secondary pod
+            range</strong>. If you leave the pod range unchecked, pods silently get no NAT
+            translation while nodes do.</li>
+        </ol>
+        <div class="callout exam">
+          <span class="tag">Interview angle</span>
+          <p>"How do private GKE nodes pull container images?" is a near-guaranteed interview
+          question once "private cluster" is on your resume. The answer has two parts: Artifact
+          Registry traffic can go out via Private Google Access alone; anything else needs Cloud
+          NAT with the pod IP range explicitly included in the NAT mapping.</p>
+        </div>
+      </section>
+
+      <section class="phase" id="phase-4">
+        <div class="phase-head"><span class="phase-num">04</span><h2>Firewall rules</h2></div>
+        <p class="why">A custom-mode VPC starts with <em>zero</em> allow rules — only the two implied
+          rules every VPC has (deny all ingress, allow all egress). GKE itself auto-manages the
+          rules its control plane needs to reach nodes, and the Ingress controller auto-manages the
+          health-check rule for whatever Service it's pointed at. What's left for you is debug
+          access to nodes that have no public IP.</p>
+        <div class="badge-row"><span class="badge console">console</span></div>
+        <ol class="steps">
+          <li>VPC network → Firewall → <strong>Create firewall rule</strong>: name
+            <code>allow-iap-ssh</code>, direction Ingress, targets: all instances in the network,
+            source range <code>35.235.240.0/20</code> (Google's fixed IAP range), protocols/ports
+            <code>tcp:22</code>.</li>
+        </ol>
+        <div class="callout exam">
+          <span class="tag">Interview angle</span>
+          <p>"Your GKE nodes have no external IP — how do you SSH into one to debug it?" Answer:
+          <strong>Identity-Aware Proxy (IAP) TCP forwarding</strong> — <code>gcloud compute ssh
+          &lt;node&gt; --tunnel-through-iap</code>. IAP proxies the connection through Google's
+          infrastructure over HTTPS, so the node never needs a public IP or an open port to the
+          internet — only to Google's own <code>35.235.240.0/20</code> range.</p>
+        </div>
+      </section>
+
+      <section class="phase" id="phase-5">
+        <div class="phase-head"><span class="phase-num">05</span><h2>Artifact Registry</h2></div>
+        <p class="why">Container Registry (<code>gcr.io</code>) is the legacy product; Artifact
+          Registry is its regional, IAM-scoped, multi-format successor and what GCP now provisions
+          by default. Pinning images to the same region as your cluster keeps pulls fast and free of
+          cross-region egress cost.</p>
+        <div class="badge-row"><span class="badge console">console</span><span class="badge shell">cloud shell</span></div>
+        <ol class="steps">
+          <li>Artifact Registry → <strong>Create repository</strong>. Name <code>gke-repo</code>,
+            format Docker, mode Standard, region <code>us-central1</code>.</li>
+          <li>Open Cloud Shell and authenticate Docker against it, then tag and push the images you
+            already built locally:</li>
+        </ol>
+        <div class="code-label">Cloud Shell — from your gke1 and gke2 project folders</div>
+        <pre class="code-block"><span class="comment"># one-time: let docker push to this region's Artifact Registry</span>
+<span class="prompt">$</span> gcloud auth configure-docker us-central1-docker.pkg.dev
+
+<span class="comment"># from wherever gke1:local and gke2:local exist, or rebuild here</span>
+<span class="prompt">$</span> docker tag gke1:local us-central1-docker.pkg.dev/PROJECT_ID/gke-repo/gke1:v1
+<span class="prompt">$</span> docker tag gke2:local us-central1-docker.pkg.dev/PROJECT_ID/gke-repo/gke2:v1
+
+<span class="prompt">$</span> docker push us-central1-docker.pkg.dev/PROJECT_ID/gke-repo/gke1:v1
+<span class="prompt">$</span> docker push us-central1-docker.pkg.dev/PROJECT_ID/gke-repo/gke2:v1</pre>
+        <p>Swap <code>PROJECT_ID</code> for your new project's ID throughout this guide.</p>
+      </section>
+
+      <section class="phase" id="phase-6">
+        <div class="phase-head"><span class="phase-num">06</span><h2>A dedicated node service account</h2></div>
+        <p class="why">Left unset, new node pools default to the project's Compute Engine default
+          service account — which typically carries the broad, legacy <code>Editor</code>-adjacent
+          scope. Every workload on every node inherits whatever that account can do. A minimal,
+          purpose-built node SA is one of the highest-leverage production hardening steps in GKE,
+          and one of the most common things a real security review flags.</p>
+        <div class="badge-row"><span class="badge console">console</span></div>
+        <ol class="steps">
+          <li>IAM &amp; Admin → Service Accounts → <strong>Create service account</strong>:
+            <code>gke-node-sa</code>.</li>
+          <li>Grant it exactly these project roles — nothing else:</li>
+        </ol>
+        <div class="field-table-wrap">
+          <table class="field-table">
+            <thead><tr><th>Role</th><th>Why the node needs it</th></tr></thead>
+            <tbody>
+              <tr><td class="value">roles/logging.logWriter</td><td>ship container logs to Cloud Logging</td></tr>
+              <tr><td class="value">roles/monitoring.metricWriter</td><td>ship metrics to Cloud Monitoring</td></tr>
+              <tr><td class="value">roles/monitoring.viewer</td><td>read back its own metrics for autoscaling signals</td></tr>
+              <tr><td class="value">roles/artifactregistry.reader</td><td>pull images from gke-repo</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="callout exam">
+          <span class="tag">Exam angle</span>
+          <p>This is the node's <em>identity</em> — separate from Workload Identity, which governs
+          what individual <em>pods</em> can do. Both appear on the GKE section of every associate
+          and professional GCP exam; conflating them is the single most common wrong answer.</p>
+        </div>
+      </section>
+
+      <section class="phase" id="phase-7">
+        <div class="phase-head"><span class="phase-num">07</span><h2>The GKE cluster</h2></div>
+        <p class="why">Every toggle below is a deliberate production trade-off, not a default left
+          alone. This is the phase worth reading twice before clicking Create.</p>
+        <div class="badge-row"><span class="badge console">console</span></div>
+        <ol class="steps">
+          <li>Kubernetes Engine → Clusters → <strong>Create</strong> → switch the mode at the top from
+            Autopilot to <strong>Standard</strong>.</li>
+          <li><strong>Cluster basics</strong>: name <code>gke-cluster</code>; location type
+            <strong>Regional</strong>, region <code>us-central1</code> — a regional cluster runs the
+            control plane redundantly across three zones, so a single zone outage doesn't take your
+            API server down with it.</li>
+        </ol>
+        <div class="field-table-wrap">
+          <table class="field-table">
+            <thead><tr><th>Section → field</th><th>Setting</th></tr></thead>
+            <tbody>
+              <tr><td>Networking → Network / Subnet</td><td class="value">gke-vpc / gke-subnet</td></tr>
+              <tr><td>Networking → VPC-native traffic routing</td><td class="value">On, using gke-pods / gke-services</td></tr>
+              <tr><td>Networking → Private cluster</td><td class="value">Enable private nodes: On</td></tr>
+              <tr><td>Networking → Control plane IP range</td><td class="value">172.16.0.0/28</td></tr>
+              <tr><td>Networking → Control plane access</td><td class="value">See callout below</td></tr>
+              <tr><td>Security → Workload Identity</td><td class="value">Enable (pool: PROJECT_ID.svc.id.goog)</td></tr>
+              <tr><td>Security → Shielded GKE Nodes</td><td class="value">On (Secure Boot + Integrity Monitoring)</td></tr>
+              <tr><td>Node pool → Service account</td><td class="value">gke-node-sa (from Phase 06)</td></tr>
+              <tr><td>Node pool → Machine type</td><td class="value">e2-medium</td></tr>
+              <tr><td>Node pool → Autoscaling</td><td class="value">On, 1–3 nodes per zone</td></tr>
+              <tr><td>Cluster → Release channel</td><td class="value">Regular</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="callout exam">
+          <span class="tag">Trade-off — control plane access</span>
+          <p>True production practice keeps the control plane's public endpoint <strong>off</strong>
+          entirely and reaches it only from inside the VPC — via a bastion host, Cloud VPN, or
+          Interconnect. That's not practical for a same-day learning lab run from Cloud Shell.
+          For this lab: keep the public endpoint on, and under <strong>Control plane authorized
+          networks</strong> add your current public IP (or Cloud Shell will simply be rejected).
+          Say this trade-off out loud in an interview — knowing what you're <em>not</em> doing, and
+          why, is the actual signal.</p>
+        </div>
+        <div class="callout exam">
+          <span class="tag">Cost note — regional × autoscaling</span>
+          <p>A regional cluster provisions its node pool <em>per zone</em>. "1–3 nodes" here means
+          1–3 nodes <em>in each of three zones</em> — 3 to 9 <code>e2-medium</code> VMs total. That's
+          the right default to know for the exam; it's also why this lab tears down the same day.</p>
+        </div>
+      </section>
+
+      <section class="phase" id="phase-8">
+        <div class="phase-head"><span class="phase-num">08</span><h2>Connect &amp; deploy the workloads</h2></div>
+        <p class="why">The manifests below already live in each repo's <code>k8s/</code> folder —
+          they're the same shape you'd use in a real GitOps pipeline, just applied by hand this once.
+          Both services run in a dedicated <code>apps</code> namespace with their own minimal
+          <code>ServiceAccount</code> (not <code>default</code>) — namespace isolation and per-workload
+          identity are both things a resource quota or an RBAC policy can later hang off.</p>
+        <div class="badge-row"><span class="badge shell">cloud shell</span></div>
+        <div class="code-label">Cloud Shell</div>
+        <pre class="code-block"><span class="comment"># point kubectl at the new cluster</span>
+<span class="prompt">$</span> gcloud container clusters get-credentials gke-cluster \
+    --region us-central1 --project PROJECT_ID
+
+<span class="comment"># clone both repos (or paste the k8s/ files directly)</span>
+<span class="prompt">$</span> git clone https://github.com/Akash-repo/gke1.git
+<span class="prompt">$</span> git clone https://github.com/Akash-repo/gke2.git
+
+<span class="comment"># update the image references first — see below</span>
+<span class="prompt">$</span> kubectl apply -f gke1/k8s/namespace.yaml
+<span class="prompt">$</span> kubectl apply -f gke2/k8s/serviceaccount.yaml -f gke2/k8s/deployment.yaml -f gke2/k8s/service.yaml
+<span class="prompt">$</span> kubectl apply -f gke1/k8s/serviceaccount.yaml -f gke1/k8s/deployment.yaml -f gke1/k8s/service.yaml</pre>
+        <p>Each <code>deployment.yaml</code> has a placeholder image:
+          <code>REGION-docker.pkg.dev/PROJECT_ID/gke-repo/gke1:latest</code>. Edit it to the exact
+          tag you pushed in Phase 05 (<code>us-central1-docker.pkg.dev/PROJECT_ID/gke-repo/gke1:v1</code>)
+          before applying — an unpinned <code>:latest</code> tag is itself worth flagging as an
+          anti-pattern in a real review: it makes rollbacks ambiguous, since the tag doesn't tell
+          you which build is actually running.</p>
+        <div class="callout">
+          <span class="tag">What's already in the manifests</span>
+          <p>Resource <code>requests</code>/<code>limits</code> on every container (so the scheduler
+          can bin-pack correctly and one runaway pod can't starve its neighbors), a
+          <code>readinessProbe</code> and <code>livenessProbe</code> both pointed at
+          <code>/is-alive</code> (readiness gates traffic into the pod; liveness restarts it if it
+          wedges), and <code>automountServiceAccountToken: false</code> since neither app calls the
+          Kubernetes API and doesn't need that token mounted.</p>
+        </div>
+      </section>
+
+      <section class="phase" id="phase-9">
+        <div class="phase-head"><span class="phase-num">09</span><h2>Expose gke1 &amp; test end-to-end</h2></div>
+        <p class="why">gke2 stays <code>ClusterIP</code> — reachable only from inside the cluster,
+          which is correct: it has no reason to ever see a request that didn't come from gke1.
+          gke1 gets an <code>Ingress</code>, which GKE turns into a real Google Cloud external HTTP(S)
+          load balancer wired directly to gke1's pod IPs.</p>
+        <div class="badge-row"><span class="badge shell">cloud shell</span><span class="badge console">console</span></div>
+        <pre class="code-block"><span class="prompt">$</span> kubectl apply -f gke1/k8s/ingress.yaml
+
+<span class="comment"># provisioning a real GCLB takes several minutes — watch for an address</span>
+<span class="prompt">$</span> kubectl get ingress gke1-ingress -n apps --watch</pre>
+        <ol class="steps">
+          <li>Once an <code>ADDRESS</code> appears, Console → Kubernetes Engine → Gateways, Services
+            &amp; Ingress will show the same Ingress with a green healthy backend once health checks
+            pass.</li>
+          <li>Test both hops from your own machine, not just Cloud Shell — this confirms the public
+            path actually works:</li>
+        </ol>
+        <pre class="code-block"><span class="prompt">$</span> curl http://EXTERNAL_IP/is-alive
+<span class="comment">OK</span>
+
+<span class="prompt">$</span> curl http://EXTERNAL_IP/call-gke2
+<span class="comment">gke2 running on gke2-7d8f9c6b8f-x2kqp   ← the actual pod name, since $HOSTNAME is the pod</span></pre>
+        <div class="callout good">
+          <span class="tag">What this proves</span>
+          <p>The container-native load balancer reached a specific gke1 <em>pod</em> directly (not a
+          node), that pod resolved <code>http://gke2:8083</code> through cluster DNS to a gke2
+          Service, and that Service load-balanced to one of two gke2 <em>pod</em> replicas — the
+          exact same call chain you validated locally with Docker, now running across real GCP
+          networking, IAM, and load balancing.</p>
+        </div>
+      </section>
+
+      <section class="phase" id="phase-10">
+        <div class="phase-head"><span class="phase-num">10</span><h2>Verify autoscaling</h2></div>
+        <p class="why"><code>gke1/k8s/hpa.yaml</code> is already applied conceptually here — a
+          <code>HorizontalPodAutoscaler</code> that keeps gke1 between 2 and 5 replicas, scaling on
+          CPU. This is the mechanism behind "GKE scales with traffic," and interviewers will ask you
+          to explain what actually triggers it.</p>
+        <div class="badge-row"><span class="badge shell">cloud shell</span></div>
+        <pre class="code-block"><span class="prompt">$</span> kubectl apply -f gke1/k8s/hpa.yaml
+<span class="prompt">$</span> kubectl get hpa gke1 -n apps --watch</pre>
+        <div class="callout exam">
+          <span class="tag">Exam angle</span>
+          <p>Three distinct autoscalers exist in GKE and the exam expects you to tell them apart:
+          <strong>HPA</strong> changes replica <em>count</em> based on pod metrics (CPU here);
+          <strong>Vertical Pod Autoscaler</strong> changes a pod's requested CPU/memory instead of
+          its count; <strong>Cluster Autoscaler</strong> — the "1–3 nodes" setting from Phase 07 —
+          adds or removes <em>nodes</em> when pods can't be scheduled. HPA scaling replicas is what
+          eventually triggers Cluster Autoscaler to add a node, not the other way around.</p>
+        </div>
+      </section>
+
+      <section class="phase" id="phase-11">
+        <div class="phase-head"><span class="phase-num">11</span><h2>Observability, for free</h2></div>
+        <p class="why">Because the node SA from Phase 06 was granted logging and monitoring roles,
+          every container's stdout/stderr and every standard resource metric is already flowing —
+          no agent to install, nothing extra to deploy.</p>
+        <div class="badge-row"><span class="badge console">console</span></div>
+        <ol class="steps">
+          <li>Kubernetes Engine → Workloads → <code>gke1</code> → Logs tab: live container logs,
+            filterable by pod.</li>
+          <li>Logging → Logs Explorer, filter
+            <code>resource.type="k8s_container" AND resource.labels.namespace_name="apps"</code>
+            to see both services' logs together.</li>
+          <li>Monitoring → Dashboards → GKE: per-pod CPU/memory against the requests/limits you set
+            in Phase 08 — this is where you'd notice a limit set too low before it pages anyone.</li>
+        </ol>
+      </section>
+
+      <section class="phase" id="phase-12">
+        <div class="phase-head"><span class="phase-num">12</span><h2>Exam &amp; interview map</h2></div>
+        <p class="why">What you clicked through, why it was the production choice, and the question
+          it answers if someone asks.</p>
+        <div class="field-table-wrap">
+          <table class="cheat">
+            <thead><tr><th>What you did</th><th>Why it's the prod choice</th><th>Likely question</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>Custom-mode VPC, sized subnet</td>
+                <td>Full control over IP planning before workloads exist</td>
+                <td>"Why not use the default VPC?"</td>
+              </tr>
+              <tr>
+                <td>VPC-native cluster (alias IPs)</td>
+                <td>Pods get routable VPC IPs — no overlay, works natively with VPC firewall/routes</td>
+                <td>"VPC-native vs routes-based — what changed and why does GCP default to native now?"</td>
+              </tr>
+              <tr>
+                <td>Private nodes + Cloud NAT</td>
+                <td>No node ever has a public IP; egress is explicit and auditable through one gateway</td>
+                <td>"How do private nodes reach the internet at all?"</td>
+              </tr>
+              <tr>
+                <td>Dedicated node service account</td>
+                <td>Blast radius of a compromised node is the 4 roles you granted, not project Editor</td>
+                <td>"What can an attacker do if they get a shell on a node?"</td>
+              </tr>
+              <tr>
+                <td>Workload Identity enabled</td>
+                <td>Per-pod GCP identity instead of every pod inheriting the node's identity</td>
+                <td>"Node SA vs Workload Identity — what's the actual difference?"</td>
+              </tr>
+              <tr>
+                <td>Container-native load balancing (NEG)</td>
+                <td>LB talks straight to pod IPs — no extra network hop through kube-proxy on a node</td>
+                <td>"How does traffic get from GCLB to a specific pod?"</td>
+              </tr>
+              <tr>
+                <td>Readiness + liveness probes on /is-alive</td>
+                <td>Readiness gates traffic in; liveness recovers a wedged process automatically</td>
+                <td>"What's the difference between these two probes, concretely?"</td>
+              </tr>
+              <tr>
+                <td>Regional cluster, 1–3 nodes/zone</td>
+                <td>Control-plane HA across zones; Cluster Autoscaler reacts to unschedulable pods</td>
+                <td>"HPA vs Cluster Autoscaler — which triggers which?"</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="phase" id="phase-13">
+        <div class="phase-head"><span class="phase-num">13</span><h2>Teardown</h2></div>
+        <p class="why">Delete in this order — the load balancer's forwarding rule and the NAT
+          gateway both hold references that block deleting what's underneath them, so working
+          top-down avoids "resource in use" errors.</p>
+        <div class="badge-row"><span class="badge shell">cloud shell</span><span class="badge console">console</span></div>
+        <ul class="teardown">
+          <li><span class="step-n">1</span><span><code>kubectl delete -f gke1/k8s/ingress.yaml</code> — releases the external IP and forwarding rule first; deleting the cluster first can orphan the load balancer.</span></li>
+          <li><span class="step-n">2</span><span>Kubernetes Engine → Clusters → delete <code>gke-cluster</code>.</span></li>
+          <li><span class="step-n">3</span><span>Network Services → Cloud NAT → delete the NAT gateway, then VPC network → Cloud Routers → delete <code>gke-router</code>.</span></li>
+          <li><span class="step-n">4</span><span>VPC network → delete <code>gke-subnet</code>, then delete <code>gke-vpc</code> itself.</span></li>
+          <li><span class="step-n">5</span><span>Artifact Registry → delete <code>gke-repo</code> (drops the pushed images).</span></li>
+          <li><span class="step-n">6</span><span>Simplest total cleanup: IAM &amp; Admin → Settings → <strong>Shut down</strong> the whole project — guarantees zero residual billing regardless of what step 1–5 missed.</span></li>
+        </ul>
+      </section>
+    </main>
+  </div>
+
+  <footer>
+    Local Docker validation for this same gke1/gke2 pair — is-alive checks and the
+    gke1 → gke2 call chain — is already confirmed working before this lab begins.
+  </footer>
+</div>

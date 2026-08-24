@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gke1
+  namespace: apps
+  labels:
+    app: gke1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: gke1
+  template:
+    metadata:
+      labels:
+        app: gke1
+    spec:
+      serviceAccountName: gke1-ksa
+      automountServiceAccountToken: false
+      containers:
+        - name: gke1
+          image: REGION-docker.pkg.dev/PROJECT_ID/gke-repo/gke1:latest
+          ports:
+            - containerPort: 8082
+          env:
+            - name: GKE2_URL
+              value: "http://gke2:8083"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /is-alive
+              port: 8082
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /is-alive
+              port: 8082
+            initialDelaySeconds: 15
+            periodSeconds: 20
